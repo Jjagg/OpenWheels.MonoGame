@@ -19,6 +19,12 @@ namespace OpenWheels.MonoGame
 
         private readonly Effect _effect;
 
+        private DynamicVertexBuffer _vertexBuffer;
+        private DynamicIndexBuffer _indexBuffer;
+
+        private int _vertexCount;
+        private int _indexCount;
+
         public MgRenderer(GraphicsDevice gd)
         {
             GraphicsDevice = gd;
@@ -79,17 +85,34 @@ namespace OpenWheels.MonoGame
             return new Rectangle(rect.X, rect.Y, rect.Width, rect.Height);
         }
 
-        public void BeginRender()
+        private void EnsureBufferSize(int vbs, int ibs)
         {
+            if (_vertexBuffer == null || _vertexBuffer.VertexCount < vbs)
+            {
+                _vertexBuffer?.Dispose();
+                _vertexBuffer = new DynamicVertexBuffer(GraphicsDevice, VertexPositionColorTexture.VertexDeclaration, vbs, BufferUsage.WriteOnly);
+            }
+
+            if (_indexBuffer == null || _indexBuffer.IndexCount < ibs)
+            {
+                _indexBuffer?.Dispose();
+                _indexBuffer = new DynamicIndexBuffer(GraphicsDevice, IndexElementSize.ThirtyTwoBits, ibs, BufferUsage.WriteOnly);
+            }
         }
 
-        public void DrawBatch(GraphicsState state, Vertex[] vertexBuffer, int[] indexBuffer, int startIndex,
-            int indexCount, object batchUserData)
+        public void BeginRender(Vertex[] vertexBuffer, int[] indexBuffer, int vertexCount, int indexCount)
+        {
+            EnsureBufferSize(vertexCount, indexCount);
+            _vertexBuffer.SetData(vertexBuffer, 0, vertexCount);
+            _indexBuffer.SetData(indexBuffer, 0, indexCount);
+            GraphicsDevice.SetVertexBuffer(_vertexBuffer);
+            GraphicsDevice.Indices = _indexBuffer;
+        }
+
+        public void DrawBatch(GraphicsState state, int startIndex, int indexCount, object batchUserData)
         {
             SetGraphicsState(state);
-            var vd = VertexPositionColorTexture.VertexDeclaration;
-            GraphicsDevice.DrawUserIndexedPrimitives(PrimitiveType.TriangleList, vertexBuffer, 0, vertexBuffer.Length,
-                indexBuffer, startIndex, indexCount / 3, vd);
+            GraphicsDevice.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, startIndex, indexCount / 3);
         }
 
         public void EndRender()
